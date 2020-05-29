@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Learning task</title>
+        <script src="jspsych-6.1.0/jspsych.js"></script>
+        <script src="jspsych-6.1.0/plugins/jspsych-html-keyboard-response.js"></script>
+        <script src="jspsych-6.1.0/plugins/jspsych-image-button-response-balltask.js"></script>
+        <script src="jspsych-6.1.0/plugins/jspsych-instructions.js"></script>
+        <script src="jspsych-6.1.0/plugins/jspsych-html-button-response.js"></script>
+        <script src="jspsych-6.1.0/plugins/jspsych-survey-text.js"></script>
+        <link href="jspsych-6.1.0/css/jspsych.css" rel="stylesheet" type="text/css">
+        <link href="custom.css" rel="stylesheet" type="text/css">
+        <link href="animate.css" rel="stylesheet" type="text/css">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta charset="utf-8">
+        <meta name="robots" content="noindex">
+    </head>
+    <body></body>
+    <script>
+
+      var timeline = [];
+
+      var bags = [
+        { bagcolor: 'images/circle.png' },
+        { bagcolor: 'images/triangle.png' },
+        { bagcolor: 'images/square.png' }
+      ];
+
+      function setCheckCookie() {
+        if (document.cookie.replace(/(?:(?:^|.*;\s*)alreadyDunnit\s*\=\s*([^;]*).*$)|^.*$/, "$1") === "true") {
+          alert("You have already done this experiment. Thank you!");
+          jsPsych.endExperiment("You have already done this experiment. Thank you!");
+        } else {
+          document.cookie = "alreadyDunnit=true; expires=Fri, 31 Jan 2020 23:59:59 GMT";
+        }
+      };
+
+      var consent_form = {
+        type: 'html-button-response',
+        stimulus: '<p>Welcome!<p><p>This study investigates learning and decision making. You will be presented with information relevant to this topic, asked to answer some questions and complete a learning task. Please be assured that your responses will be kept completely confidential.</p><p>The study should take you around 15 minutes to complete. Your participation in this research is voluntary. You have the right to withdraw at any point during the study, for any reason, and without any prejudice. If you would like to contact the Principal Investigator in the study to discuss this research, please e-mail Henrik Siljebråt: h.siljebrat@gold.ac.uk</p><p>We will later use your recorded data to conduct analysis which may get published in scientific publications. Please be assured that your data will be completely anonymized and it will not be possible to identify you as an individual. This anonymized data may get published online, in order for other researchers to use the data.</p><p>By clicking the "I agree" button below, you acknowledge that you have read the above information, that your participation in the study is voluntary, you are at least 18 years of age, and that you are aware that you may choose to terminate your participation in the study at any time and for any reason.</p>',
+        button_html: ['<button class="jspsych-btn" style="background-color: rgb(12, 99, 16);color:#fff">%choice%</button>', '<button class="jspsych-btn" style="background-color:rgb(73, 12, 12);color:#fff">%choice%</button>'],
+        choices: ['I agree', 'I decline'],
+        prompt: '<p>Please indicate your choice to proceed</p>',
+        on_finish: function (data) {
+          if (data.button_pressed == 0) {
+            setCheckCookie();
+            return true;
+          } else {
+            jsPsych.endExperiment("We respect your decision to not give consent. You may now close this window.");
+          }
+        }
+      };
+      
+      timeline.push(consent_form);
+
+      var instructions = {
+        type: 'instructions',
+        pages: ['<p>Can you spot the pattern?</p><p><strong>Your task is to predict the next shape.</strong></p><p>Good luck!</p>'],
+        show_clickable_nav: true,
+      };
+
+      timeline.push(instructions);
+
+      var fixation_pause = {
+        type: 'html-keyboard-response',
+        stimulus: '<div style="font-size:80px;"></div>',
+        choices: jsPsych.NO_KEYS,
+        trial_duration: 500
+      };
+
+      var single_trial = {
+        type: 'image-button-response-balltask',
+        stimulus: jsPsych.timelineVariable('ballcolor'),
+        choices: ['Circle', 'Triangle', 'Square'],
+        button_html: [
+          '<button class="jspsych-btn circle"></button>',
+          '<button class="jspsych-btn triangle"></button>',
+          '<button class="jspsych-btn square"></button>'
+        ],
+        prompt: "<p>What is the next shape?</p>",
+        margin_horizontal: '0px',
+      };
+
+      // how many balls in a single same color bag
+      var single_bag = {
+        timeline: [fixation_pause, single_trial],
+        timeline_variables: [
+          { ballcolor: jsPsych.timelineVariable('bagcolor') }
+        ],
+        repetitions: 3
+      };
+
+      // present each "bag of bags" for version 2
+      // we want all colors to show before any new colors are shown
+      var bag_of_bags = {
+        timeline: [single_bag],
+        timeline_variables: bags,
+        sample: {
+          type: 'without-replacement',
+          size: 3,
+        }
+      };
+
+      // how many bags of bags to show in total
+      // since we have minimum of 3 bags in this version with bag of bags:
+      // total trials = 3 * 3 * size in trial procedure
+      // so for 90 trials = 90/9 = 10 size
+      var trial_procedure = {
+        timeline: [bag_of_bags],
+        sample: {
+          type: 'fixed-repetitions', // how many "bags of bags" to show
+          size: 1,
+        }
+      };
+
+      timeline.push(trial_procedure);
+
+      var final_question = {
+        type: 'survey-text',
+        questions: [
+          { prompt: "<p>Almost done!</p><p><strong>Did you notice any pattern to the sequence of shapes which allowed you to predict the next one accurately?</strong></p>", rows: 10, columns: 40, required: true },
+        ],
+      };
+
+      timeline.push(final_question);
+
+      var images_preload = [
+        'images/circle.png',
+        'images/triangle.png',
+        'images/square.png',
+        'images/circle_small.png',
+        'images/triangle_small.png',
+        'images/square_small.png'
+      ];
+
+      // init experiment
+      jsPsych.init({
+        timeline: timeline,
+        preload_images: images_preload,
+        on_finish: function() {
+          saveData();
+          html = "<p>Thanks for your participation!</p><p><a href='https://app.prolific.co/submissions/complete?cc=6612CD83'>Please click here to return to Prolific</a></p>";
+          var content_element = document.getElementById('jspsych-content');
+          content_element.innerHTML = html;
+        }
+      });
+
+      function saveData() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const prolific_id = urlParams.get('PROLIFIC_PID');
+        // debug logging of data to console
+        // console.log(jsPsych.data.get().json());
+        // console.log(prolific_id);
+        // create XHR request
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', 'https://gamescapades.com/balltask/db/balltask');
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.onload = function () {
+          if (xhr.status == 200) {
+            var response = JSON.parse(xhr.responseText);
+            console.log(response.success);
+          } else {
+            var response = JSON.parse(xhr.responseText);
+            console.log(response);
+          }
+        };
+        // gather data
+        var data_trials = jsPsych.data.get();
+        // interaction is empty if no blur/focus window events have happened
+        var interaction_data = jsPsych.data.getInteractionData();
+        var combined_data = data_trials.join(interaction_data);
+        var data_json = combined_data.json();
+        var date_time = new Date();
+        data_to_send = {
+          "prolific_id": prolific_id,
+          "version": "bag-o-bags",
+          "time": date_time,
+          "data": [data_json]
+        };
+        // debug logging of data to send
+        console.log(data_to_send);
+        // send it!
+        xhr.send(JSON.stringify(data_to_send));
+      };
+
+    </script>
+</html>
